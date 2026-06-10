@@ -1,0 +1,15 @@
+output/
+*.pt
+*.pth
+
+*.mp4
+*.avi
+*.jpg
+*.png
+
+__pycache__/
+*.pyc
+
+venv/
+env/
+.env
