@@ -62,7 +62,7 @@ def evaluate_optimal_k(features_tensor, features_np, true_labels, method_class, 
     print(f"{'=' * 50}")
 
     best_k = -1
-    best_dbi = float('inf')
+    best_combined_score = float('-inf')
     best_labels = None
     best_history = None
 
@@ -87,8 +87,11 @@ def evaluate_optimal_k(features_tensor, features_np, true_labels, method_class, 
             report_log.append((k, sil_score, dbi_score, nmi_score, ari_score))
 
             # Cập nhật Best K nếu DBI hiện tại tốt hơn
-            if dbi_score < best_dbi:
-                best_dbi = dbi_score
+
+            combined_score = sil_score / (dbi_score + 1e-6)  # Tránh chia cho 0
+
+            if combined_score > best_combined_score:
+                best_combined_score = combined_score
                 best_k = k
                 best_labels = labels
                 best_history = history
@@ -96,7 +99,7 @@ def evaluate_optimal_k(features_tensor, features_np, true_labels, method_class, 
         except ValueError as e:
             print(f"[!] Bỏ qua K={k} do lỗi: {e}")
 
-    print(f"\n[+] TỔNG KẾT {method_name}: K tối ưu tìm được là {best_k} (DBI: {best_dbi:.4f})")
+    print(f"\n[+] TỔNG KẾT {method_name}: K tối ưu tìm được là {best_k} (DBI: {best_combined_score:.4f})")
     return best_k, best_labels, best_history, report_log
 
 def main():
