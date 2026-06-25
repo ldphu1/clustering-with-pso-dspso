@@ -12,6 +12,29 @@ from kmeans import KMeansWrapper
 from ds_pso_clustering import *
 from pso_clustering import *
 
+import pandas as pd
+import os
+
+
+def export_log_to_excel(report_log, method_name, filename="clustering_results.xlsx"):
+    """
+    Lưu nhật ký chạy thử nghiệm ra file Excel.
+    Mỗi phương pháp (method_name) sẽ được lưu thành một Sheet riêng trong cùng 1 file.
+    """
+    columns = ['K (Số cụm)', 'Silhouette', 'DBI', 'NMI', 'ARI']
+
+    df = pd.DataFrame(report_log, columns=columns)
+
+    df = df.round(4)
+
+    if os.path.exists(filename):
+        with pd.ExcelWriter(filename, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+            df.to_excel(writer, sheet_name=method_name, index=False)
+    else:
+        with pd.ExcelWriter(filename, engine='openpyxl', mode='w') as writer:
+            df.to_excel(writer, sheet_name=method_name, index=False)
+
+    print(f"[v] Đã xuất báo cáo của {method_name} ra Excel (File: {filename} | Sheet: {method_name})")
 
 def plot_results(features_2d, true_labels, labels_pred, fitness_history, method_name, k_val):
     """
@@ -107,7 +130,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[*] Using device: {device}")
 
-    stl10_test = datasets.STL10(root='./data', split='test', download=True)
+    stl10_test = datasets.STL10(root='./data', split='test', download=False)
     true_labels = np.array(stl10_test.labels)
 
     # Tải đặc trưng
@@ -136,6 +159,18 @@ def main():
     K_MIN = 5
     K_MAX = 15
 
+    #K-means
+    best_k, labels, history, log = evaluate_optimal_k(
+        features_tensor=features_tensor,
+        features_np=features_np_original,
+        true_labels=true_labels,
+        method_class=KMeansWrapper,
+        method_name="K-Means Baseline",
+        k_min=K_MIN,
+        k_max=K_MAX
+    )
+    output(features_2d, true_labels, labels, history, "K-Means", best_k, log)
+
     #PSO
     best_k, labels, history, log = evaluate_optimal_k(
         features_tensor=features_reduced_tensor,
@@ -147,43 +182,51 @@ def main():
         k_max=K_MAX,
         # Các tham số kwargs
         n_particles=20,
-        max_iter=300
+        max_iter=500
     )
-    #DS-PSO
-    # best_k, labels, history, log = evaluate_optimal_k(
-    #     features_tensor=features_reduced_tensor,
-    #     features_np=features_reduced_np,
-    #     true_labels=true_labels,
-    #     method_class=DSPSO_CPU,
-    #     method_name="DS-PSO HYBRID",
-    #     k_min=K_MIN,
-    #     k_max=K_MAX,
-    #     # Các tham số kwargs
-    #     n_swarms=5,
-    #     particles_per_swarm=20,
-    #     max_iter=300,
-    #     hybrid=True
-    # )
-    #K-means
-    # best_k, labels, history, log = evaluate_optimal_k(
-    #     features_tensor=features_reduced_tensor,
-    #     features_np=features_reduced_np,
-    #     true_labels=true_labels,
-    #     method_class=DSPSO_CPU,
-    #     method_name="DS-PSO HYBRID",
-    #     k_min=K_MIN,
-    #     k_max=K_MAX,
-    #     # Các tham số kwargs
-    #     n_swarms=5,
-    #     particles_per_swarm=20,
-    #     max_iter=300,
-    #     hybrid=True
-    # )
+    output(features_2d, true_labels, labels, history, "PSO", best_k, log)
+
+    # DS-PSO
+    best_k, labels, history, log = evaluate_optimal_k(
+        features_tensor=features_reduced_tensor,
+        features_np=features_reduced_np,
+        true_labels=true_labels,
+        method_class=DSPSO_GPU,
+        method_name="DS-PSO HYBRID",
+        k_min=K_MIN,
+        k_max=K_MAX,
+        # Các tham số kwargs
+        n_swarms=5,
+        particles_per_swarm=20,
+        max_iter=500,
+        hybrid=False
+    )
+    output(features_2d, true_labels, labels, history, "DS-PSO", best_k, log)
+
+    # hybrid
+    best_k, labels, history, log = evaluate_optimal_k(
+        features_tensor=features_reduced_tensor,
+        features_np=features_reduced_np,
+        true_labels=true_labels,
+        method_class=DSPSO_GPU,
+        method_name="DS-PSO HYBRID",
+        k_min=K_MIN,
+        k_max=K_MAX,
+        # Các tham số kwargs
+        n_swarms=5,
+        particles_per_swarm=20,
+        max_iter=500,
+        hybrid=True
+    )
+    output(features_2d, true_labels, labels, history, "HYBRID", best_k, log)
+
+def output(features_2d, true_labels, labels, history, method_name, best_k, log):
+    export_log_to_excel(log, method_name)
 
     print("\n=== 2. XUẤT BIỂU ĐỒ CHO MÔ HÌNH TỐT NHẤT ===")
-    plot_results(features_2d, true_labels, labels, history, method_name="PSO", k_val=best_k)
+    plot_results(features_2d, true_labels, labels, history, method_name=method_name, k_val=best_k)
 
-    print("\n=== BẢNG BÁO CÁO THỰC NGHIỆM PSO ===")
+    print("\n=== BẢNG BÁO CÁO THỰC NGHIỆM ===")
     print(f"{'K':<5} | {'Silhouette':<15} | {'DBI':<15} | {'NMI':<15} | {'ARI':<15}")
     print("-" * 40)
     for k_val, sil, dbi, nmi, ari in log:

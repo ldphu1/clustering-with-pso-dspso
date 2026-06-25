@@ -24,7 +24,7 @@ def extract():
     dataloader = DataLoader(stl10_test, batch_size=64, shuffle=False)
 
     model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
-    modules = list(model.children())[:7]
+    modules = list(model.children())[:-1]
     model = torch.nn.Sequential(*modules, torch.nn.AdaptiveAvgPool2d((1, 1)))
     model.eval().to(device)
 

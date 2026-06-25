@@ -2,10 +2,16 @@ output/
 *.pt
 *.pth
 
+data/
+test/
+test_images/
+train_images/
+
 *.mp4
 *.avi
 *.jpg
 *.png
+*.xlsx
 
 __pycache__/
 *.pyc
